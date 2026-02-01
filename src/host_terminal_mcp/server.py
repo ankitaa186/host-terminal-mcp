@@ -422,6 +422,17 @@ def main():
         dest="allowed_dirs",
         help="Add allowed directory (can be specified multiple times)",
     )
+    parser.add_argument(
+        "--http",
+        action="store_true",
+        help="Run as HTTP server instead of stdio MCP transport",
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=8099,
+        help="HTTP server port (default: 8099, only used with --http)",
+    )
 
     args = parser.parse_args()
 
@@ -443,13 +454,23 @@ def main():
         config.allowed_directories.extend(args.allowed_dirs)
         logger.info(f"Added allowed directories: {args.allowed_dirs}")
 
-    # Create and run server
-    server = HostTerminalServer(config)
-    logger.info("Starting Host Terminal MCP Server")
     logger.info(f"Permission mode: {config.permission_mode.value}")
     logger.info(f"Allowed directories: {config.allowed_directories}")
 
-    asyncio.run(server.run())
+    if args.http:
+        # Run as HTTP server (for external service access)
+        from .http_server import create_app
+
+        import uvicorn
+
+        app = create_app(config)
+        logger.info(f"Starting Host Terminal MCP HTTP Server on port {args.port}")
+        uvicorn.run(app, host="0.0.0.0", port=args.port)
+    else:
+        # Run as stdio MCP server (default)
+        server = HostTerminalServer(config)
+        logger.info("Starting Host Terminal MCP Server (stdio)")
+        asyncio.run(server.run())
 
 
 if __name__ == "__main__":

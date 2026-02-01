@@ -91,8 +91,9 @@ class TestCommandExecutor:
     @pytest.mark.asyncio
     async def test_output_truncation(self, executor):
         """Test output is truncated when too large."""
-        # Generate output larger than max_output_size (1000)
-        result = await executor.execute("yes | head -500")
+        # Generate output larger than max_output_size (1000 chars)
+        # yes | head -1000 produces 2000 chars (1000 lines of "y\n")
+        result = await executor.execute("yes | head -1000")
         assert result.truncated
         assert "truncated" in result.stdout.lower()
 

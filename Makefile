@@ -1,166 +1,163 @@
-.PHONY: all venv install install-dev test test-verbose lint format build clean run run-ask run-allow-all init-config inspect package publish publish-pypi publish-github marketplace help
+.PHONY: all install test test-verbose test-cov lint format build package \
+       publish publish-pypi publish-github marketplace \
+       clean clean-all run start stop status restart \
+       init-config inspect help
 
-# Default Python version
-PYTHON ?= python3.10
-
-# Virtual environment directory
+UV   := uv
 VENV := .venv
-UV := uv
 
-# Default target
-all: install-dev test
+# HTTP daemon settings
+HTTP_PORT ?= 8099
+STATE_DIR := $(HOME)/.local/state/host-terminal-mcp
+LOG_FILE  := $(STATE_DIR)/http-server.log
+PID_FILE  := $(STATE_DIR)/http-server.pid
 
-# Create virtual environment if it doesn't exist
-venv:
-	@if [ ! -d "$(VENV)" ]; then \
-		echo "📦 Creating virtual environment..."; \
-		$(UV) venv $(VENV); \
-		echo "✅ Virtual environment created at $(VENV)"; \
-	else \
-		echo "✅ Virtual environment already exists at $(VENV)"; \
-	fi
+# stdio server settings
+MODE ?= allowlist
 
-# Install production dependencies (creates venv if needed)
-install: venv
-	$(UV) pip install -e .
-	@echo "✅ Installed in production mode"
+# ---------- Setup ----------
 
-# Install with dev dependencies (creates venv if needed)
-install-dev: venv
-	$(UV) pip install -e ".[dev]"
-	@echo "✅ Installed in development mode"
+all: install test
 
-# Run tests
-test: venv
+$(VENV):
+	@$(UV) venv $(VENV)
+
+install: $(VENV)
+	@$(UV) pip install -e ".[http,dev]" --quiet
+	@echo "Installed host-terminal-mcp with all extras"
+
+# ---------- Quality ----------
+
+test: $(VENV)
 	$(UV) run pytest
 
-# Run tests with verbose output
-test-verbose: venv
+test-verbose: $(VENV)
 	$(UV) run pytest -v --tb=short
 
-# Run tests with coverage
-test-cov: venv
+test-cov: $(VENV)
 	$(UV) run pytest --cov=src/host_terminal_mcp --cov-report=term-missing
 
-# Lint code
-lint: venv
+lint: $(VENV)
 	$(UV) run ruff check src/ tests/ || true
 	$(UV) run mypy src/ || true
 
-# Format code
-format: venv
+format: $(VENV)
 	$(UV) run ruff format src/ tests/ || true
 
-# Build Python wheel/sdist
-build: venv
-	$(UV) build
-	@echo "✅ Built Python package in dist/"
+# ---------- Build & Publish ----------
 
-# Package as Cowork plugin (.plugin file)
+build: $(VENV)
+	$(UV) build
+
 package: build
 	$(UV) run python scripts/package_plugin.py
-	@echo "✅ Plugin packaged in dist/"
 
-# Publish to PyPI (MCP server only)
 publish-pypi: build
-	@echo "📤 Publishing to PyPI..."
 	$(UV) publish
-	@echo "✅ Published to PyPI"
 
-# Create GitHub release (requires gh CLI)
 publish-github: package
 	@VERSION=$$(python -c "import json; print(json.load(open('.claude-plugin/plugin.json'))['version'])"); \
-	echo "📤 Creating GitHub release v$$VERSION..."; \
 	gh release create "v$$VERSION" dist/*.plugin dist/*.whl dist/*.tar.gz \
-		--title "v$$VERSION" \
-		--notes "Release v$$VERSION" \
-		--draft; \
-	echo "✅ Draft release created - review and publish at GitHub"
+		--title "v$$VERSION" --notes "Release v$$VERSION" --draft
 
-# Full publish (PyPI + GitHub)
 publish: publish-pypi publish-github
-	@echo "✅ Published to PyPI and GitHub"
 
-# Create marketplace repository structure for UI installation
-marketplace: venv
+marketplace: $(VENV)
 	$(UV) run python scripts/setup_marketplace.py
-	@echo "✅ Marketplace created - see output for next steps"
 
-# Clean build artifacts
-clean:
-	rm -rf dist/
-	rm -rf build/
-	rm -rf *.egg-info/
-	rm -rf src/*.egg-info/
-	rm -rf .pytest_cache/
-	rm -rf .ruff_cache/
-	rm -rf .mypy_cache/
-	rm -rf htmlcov/
-	rm -rf .coverage
-	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
-	@echo "✅ Cleaned build artifacts"
+# ---------- Run (stdio, foreground) ----------
 
-# Clean everything including venv
-clean-all: clean
-	rm -rf $(VENV)
-	@echo "✅ Cleaned everything including virtual environment"
-
-# Run the MCP server (default: allowlist mode)
 run: install
-	$(UV) run host-terminal-mcp
+	$(UV) run host-terminal-mcp --mode $(MODE)
 
-# Run in ask mode
-run-ask: install
-	$(UV) run host-terminal-mcp --mode ask
+# ---------- HTTP daemon (start/stop/status) ----------
 
-# Run in allow-all mode (DANGEROUS)
-run-allow-all: install
-	@echo "⚠️  WARNING: Running in allow-all mode - all commands will be executed!"
-	$(UV) run host-terminal-mcp --mode allow_all
+start: install
+	@mkdir -p $(STATE_DIR)
+	@if [ -f $(PID_FILE) ] && kill -0 $$(cat $(PID_FILE)) 2>/dev/null; then \
+		echo "Already running (PID $$(cat $(PID_FILE)), port $(HTTP_PORT))"; \
+		exit 1; \
+	fi
+	@nohup $(UV) run host-terminal-mcp --http --port $(HTTP_PORT) --mode $(MODE) > $(LOG_FILE) 2>&1 & \
+		echo $$! > $(PID_FILE); \
+		echo "Started on port $(HTTP_PORT) (PID $$!)"; \
+		echo "Logs: $(LOG_FILE)"
 
-# Initialize default config
+stop:
+	@if [ -f $(PID_FILE) ] && kill -0 $$(cat $(PID_FILE)) 2>/dev/null; then \
+		kill $$(cat $(PID_FILE)); \
+		rm -f $(PID_FILE); \
+		echo "Stopped"; \
+	else \
+		echo "Not running"; \
+		rm -f $(PID_FILE); \
+	fi
+
+status:
+	@if [ -f $(PID_FILE) ] && kill -0 $$(cat $(PID_FILE)) 2>/dev/null; then \
+		echo "Running (PID $$(cat $(PID_FILE)), port $(HTTP_PORT))"; \
+	else \
+		echo "Not running"; \
+	fi
+	@if [ -f $(LOG_FILE) ]; then echo ""; tail -10 $(LOG_FILE); fi
+
+restart: stop start
+
+# ---------- Utilities ----------
+
 init-config: install
 	$(UV) run host-terminal-mcp --init-config
-	@echo "✅ Config created at ~/.config/host-terminal-mcp/config.yaml"
 
-# Test with MCP Inspector
 inspect: install
 	npx @modelcontextprotocol/inspector $(UV) run host-terminal-mcp
 
-# Show help
+clean:
+	rm -rf dist/ build/ *.egg-info/ src/*.egg-info/ \
+		.pytest_cache/ .ruff_cache/ .mypy_cache/ htmlcov/ .coverage
+	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+
+clean-all: clean
+	rm -rf $(VENV)
+
+# ---------- Help ----------
+
 help:
-	@echo "Host Terminal MCP - Development Commands"
+	@echo "Host Terminal MCP"
 	@echo ""
-	@echo "Setup:"
-	@echo "  make venv          Create virtual environment"
-	@echo "  make install       Install production dependencies"
-	@echo "  make install-dev   Install with dev dependencies"
+	@echo "  make install                  Install all dependencies (venv auto-created)"
+	@echo ""
+	@echo "Stdio server (foreground, for Claude Desktop / MCP Inspector):"
+	@echo "  make run                      Run in allowlist mode (default)"
+	@echo "  make run MODE=ask             Run in ask mode"
+	@echo "  make run MODE=allow_all       Run in allow-all mode"
+	@echo ""
+	@echo "HTTP server (background daemon, for Annie / external services):"
+	@echo "  make start                    Start on port 8099"
+	@echo "  make start HTTP_PORT=9000     Start on custom port"
+	@echo "  make start MODE=ask           Start with ask permission mode"
+	@echo "  make stop                     Stop"
+	@echo "  make status                   Show status and recent logs"
+	@echo "  make restart                  Stop + start"
+	@echo ""
+	@echo "MODE controls the permission mode for both run and start:"
+	@echo "  allowlist (default)  Only pre-approved commands"
+	@echo "  ask                  Prompt for unknown commands"
+	@echo "  allow_all            Allow everything (dangerous)"
 	@echo ""
 	@echo "Testing:"
-	@echo "  make test          Run tests"
-	@echo "  make test-verbose  Run tests with verbose output"
-	@echo "  make test-cov      Run tests with coverage"
+	@echo "  make test                     Run tests"
+	@echo "  make test-verbose             Verbose output"
+	@echo "  make test-cov                 With coverage"
+	@echo "  make lint                     Run linters"
+	@echo "  make format                   Format code"
 	@echo ""
-	@echo "Code Quality:"
-	@echo "  make lint          Run linters"
-	@echo "  make format        Format code"
+	@echo "Build:"
+	@echo "  make build                    Build wheel and sdist"
+	@echo "  make package                  Package as .plugin"
+	@echo "  make publish                  Publish to PyPI + GitHub"
 	@echo ""
-	@echo "Building & Publishing:"
-	@echo "  make build         Build Python wheel and sdist"
-	@echo "  make package       Package as Cowork plugin (.plugin)"
-	@echo "  make marketplace   Create GitHub marketplace for UI install"
-	@echo "  make publish-pypi  Publish MCP server to PyPI"
-	@echo "  make publish-github Create GitHub release with plugin"
-	@echo "  make publish       Publish to both PyPI and GitHub"
-	@echo "  make clean         Clean build artifacts"
-	@echo "  make clean-all     Clean everything including venv"
-	@echo ""
-	@echo "Running:"
-	@echo "  make run           Run MCP server (allowlist mode)"
-	@echo "  make run-ask       Run MCP server (ask mode)"
-	@echo "  make run-allow-all Run MCP server (allow-all mode) ⚠️"
-	@echo "  make init-config   Create default config file"
-	@echo "  make inspect       Test with MCP Inspector"
-	@echo ""
-	@echo "Environment:"
-	@echo "  PYTHON=python3.11 make venv   Use specific Python version"
+	@echo "Utilities:"
+	@echo "  make init-config              Create default config file"
+	@echo "  make inspect                  Test with MCP Inspector"
+	@echo "  make clean                    Clean build artifacts"
+	@echo "  make clean-all                Clean everything including venv"

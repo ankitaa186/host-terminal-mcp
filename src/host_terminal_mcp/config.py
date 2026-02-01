@@ -33,8 +33,15 @@ class CommandPattern(BaseModel):
             except re.error:
                 return False
         else:
-            # Prefix match for simple patterns
-            return command.startswith(self.pattern) or command == self.pattern
+            if command == self.pattern:
+                return True
+            # Patterns ending with whitespace (e.g. "echo ", "sudo ") already
+            # encode the word boundary, so plain startswith is correct.
+            if self.pattern.endswith((" ", "\t")):
+                return command.startswith(self.pattern)
+            # Otherwise require a separator after the match so that
+            # "ls" matches "ls -la" but not "lsof".
+            return command.startswith(self.pattern + " ") or command.startswith(self.pattern + "\t")
 
 
 class Config(BaseModel):
@@ -109,7 +116,7 @@ class Config(BaseModel):
 
         # Handle based on permission mode
         if self.permission_mode == PermissionMode.ALLOW_ALL:
-            return True, "Allow-all mode is enabled"
+            return True, "allow_all mode is enabled"
         elif self.permission_mode == PermissionMode.ASK:
             return False, "NEEDS_APPROVAL"
         else:  # ALLOWLIST
@@ -187,16 +194,11 @@ def get_default_allowed_commands() -> list[CommandPattern]:
         CommandPattern(pattern="id", description="User/group IDs"),
         CommandPattern(pattern="date", description="Current date/time"),
         CommandPattern(pattern="uptime", description="System uptime"),
-        CommandPattern(pattern="df ", description="Disk space usage"),
         CommandPattern(pattern="df", description="Disk space usage"),
         CommandPattern(pattern="du ", description="Directory space usage"),
         CommandPattern(pattern="free", description="Memory usage"),
         CommandPattern(pattern="top -l 1", description="Process info (macOS)"),
-        CommandPattern(pattern="ps ", description="Process status"),
         CommandPattern(pattern="ps", description="Process status"),
-        CommandPattern(pattern="env", description="Environment variables"),
-        CommandPattern(pattern="printenv", description="Print environment"),
-        CommandPattern(pattern="echo $", description="Echo env variable"),
 
         # Network info (read-only)
         CommandPattern(pattern="ping -c", description="Ping with count"),
@@ -258,31 +260,115 @@ def get_default_allowed_commands() -> list[CommandPattern]:
 def get_default_blocked_commands() -> list[CommandPattern]:
     """Get the default list of blocked commands."""
     return [
-        # Dangerous system commands
-        CommandPattern(pattern=r"^rm\s+-rf\s+/", description="Recursive delete root", is_regex=True),
-        CommandPattern(pattern=r"^rm\s+-rf\s+~", description="Recursive delete home", is_regex=True),
-        CommandPattern(pattern=r"^rm\s+-rf\s+\*", description="Recursive delete all", is_regex=True),
+        # --- Destructive file operations ---
+        CommandPattern(
+            pattern=r"^rm\s+-rf\s+/",
+            description="Recursive force-delete from root. Blocked regex: ^rm\\s+-rf\\s+/",
+            is_regex=True,
+        ),
+        CommandPattern(
+            pattern=r"^rm\s+-rf\s+~",
+            description="Recursive force-delete home directory. Blocked regex: ^rm\\s+-rf\\s+~",
+            is_regex=True,
+        ),
+        CommandPattern(
+            pattern=r"^rm\s+-rf\s+\*",
+            description="Recursive force-delete wildcard. Blocked regex: ^rm\\s+-rf\\s+\\*",
+            is_regex=True,
+        ),
+        CommandPattern(
+            pattern=r"^rm\s+-rf\s+\.",
+            description="Recursive force-delete current/parent directory. Blocked regex: ^rm\\s+-rf\\s+\\.",
+            is_regex=True,
+        ),
+        CommandPattern(
+            pattern=r"^rm\s+-fr\s+/",
+            description="Recursive force-delete root (reversed flags). Blocked regex: ^rm\\s+-fr\\s+/",
+            is_regex=True,
+        ),
+        CommandPattern(
+            pattern=r"^rm\s+--recursive",
+            description="Recursive delete using long flag. Blocked regex: ^rm\\s+--recursive",
+            is_regex=True,
+        ),
         CommandPattern(pattern="mkfs", description="Format filesystem"),
-        CommandPattern(pattern="dd if=", description="Disk destroyer"),
+        CommandPattern(pattern="dd", description="Disk duplicator — can overwrite drives and partitions"),
+
+        # --- Arbitrary command execution via find ---
+        CommandPattern(
+            pattern=r"^find\s+.*-exec",
+            description=(
+                "find with -exec/-execdir can run arbitrary commands "
+                "(e.g. find / -exec rm -rf {} \\;). "
+                "Use find without -exec, or pipe to xargs. "
+                "Blocked regex: ^find\\s+.*-exec"
+            ),
+            is_regex=True,
+        ),
+
+        # --- Fork bomb / device overwrite ---
         CommandPattern(pattern=":(){", description="Fork bomb"),
-        CommandPattern(pattern="> /dev/sd", description="Overwrite disk"),
-        CommandPattern(pattern="chmod -R 777 /", description="Dangerous permissions"),
+        CommandPattern(
+            pattern=r".*>\s*/dev/(sd|nvme|disk|vd|hd)",
+            description=(
+                "Redirect output to raw disk device. "
+                "Blocked regex: .*>\\s*/dev/(sd|nvme|disk|vd|hd)"
+            ),
+            is_regex=True,
+        ),
+
+        # --- Dangerous permission changes ---
+        CommandPattern(pattern="chmod -R 777 /", description="Recursive world-writable permissions on root"),
+        CommandPattern(pattern="chmod 777 /", description="World-writable permissions on root"),
+        CommandPattern(pattern="chmod -R 777 ~", description="Recursive world-writable permissions on home"),
         CommandPattern(pattern="chown -R ", description="Recursive ownership change"),
 
-        # Privilege escalation
+        # --- Privilege escalation ---
         CommandPattern(pattern="sudo ", description="Superuser commands"),
         CommandPattern(pattern="su ", description="Switch user"),
         CommandPattern(pattern="doas ", description="OpenBSD sudo alternative"),
 
-        # Network attacks
+        # --- System shutdown / process control ---
+        CommandPattern(pattern="reboot", description="System reboot"),
+        CommandPattern(pattern="shutdown", description="System shutdown"),
+        CommandPattern(pattern="halt", description="System halt"),
+        CommandPattern(pattern="poweroff", description="System power off"),
+        CommandPattern(pattern="kill", description="Kill process"),
+        CommandPattern(pattern="killall", description="Kill processes by name"),
+        CommandPattern(pattern="pkill", description="Kill processes by pattern"),
+
+        # --- Network attacks ---
         CommandPattern(pattern="nc -l", description="Netcat listener"),
         CommandPattern(pattern="nmap ", description="Port scanner"),
 
-        # Credential access
-        CommandPattern(pattern="cat /etc/shadow", description="Password file"),
-        CommandPattern(pattern="cat /etc/passwd", description="User file"),
+        # --- Sensitive file access (blocked regardless of reader command) ---
+        CommandPattern(
+            pattern=r".*/etc/shadow",
+            description="Access to shadow password file. Blocked regex: .*/etc/shadow",
+            is_regex=True,
+        ),
+        CommandPattern(
+            pattern=r".*/etc/passwd",
+            description="Access to system user file. Blocked regex: .*/etc/passwd",
+            is_regex=True,
+        ),
+        CommandPattern(
+            pattern=r".*\.ssh/",
+            description="Access to SSH keys and configuration (~/.ssh/). Blocked regex: .*\\.ssh/",
+            is_regex=True,
+        ),
+        CommandPattern(
+            pattern=r".*\.aws/",
+            description="Access to AWS credentials (~/.aws/). Blocked regex: .*\\.aws/",
+            is_regex=True,
+        ),
+        CommandPattern(
+            pattern=r".*\.gnupg/",
+            description="Access to GPG keys (~/.gnupg/). Blocked regex: .*\\.gnupg/",
+            is_regex=True,
+        ),
 
-        # History/credential wiping
+        # --- History/credential wiping ---
         CommandPattern(pattern="history -c", description="Clear history"),
         CommandPattern(pattern="shred ", description="Secure delete"),
     ]

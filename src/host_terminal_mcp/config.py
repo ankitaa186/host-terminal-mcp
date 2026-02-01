@@ -330,6 +330,9 @@ def save_config(config: Config, config_path: Optional[Path] = None) -> None:
     # Convert to dict, excluding session-only fields
     data = config.model_dump(exclude={"session_approved_commands"})
 
+    # Convert permission_mode enum to string value
+    data["permission_mode"] = config.permission_mode.value
+
     # Convert CommandPattern objects to dicts
     data["allowed_commands"] = [
         {"pattern": cmd["pattern"], "description": cmd["description"], "is_regex": cmd["is_regex"]}
@@ -341,7 +344,7 @@ def save_config(config: Config, config_path: Optional[Path] = None) -> None:
     ]
 
     with open(config_path, "w") as f:
-        yaml.dump(data, f, default_flow_style=False, sort_keys=False)
+        yaml.safe_dump(data, f, default_flow_style=False, sort_keys=False)
 
 
 def create_default_config_file(config_path: Optional[Path] = None) -> Path:

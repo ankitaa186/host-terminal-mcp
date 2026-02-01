@@ -1,0 +1,37 @@
+{
+  "mcpServers": {
+    "host-terminal": {
+      "command": "host-terminal-mcp",
+      "args": [],
+      "env": {
+        "HOST_TERMINAL_CONFIG": "${HOST_TERMINAL_CONFIG:-}"
+      },
+      "description": "Execute terminal commands on the host machine with permission controls"
+    }
+  },
+  "serverConfigurations": {
+    "host-terminal": {
+      "permissionModes": {
+        "allowlist": "Only pre-approved commands can run (default, safest)",
+        "ask": "Prompt for approval when a command isn't in the allow list",
+        "allow_all": "Allow all commands (DANGEROUS - use with extreme caution!)"
+      },
+      "defaultMode": "allowlist",
+      "configPath": "~/.config/host-terminal-mcp/config.yaml"
+    }
+  },
+  "toolCategories": {
+    "~~terminal": {
+      "description": "Terminal/shell command execution",
+      "server": "host-terminal",
+      "tools": [
+        "execute_command",
+        "change_directory",
+        "get_current_directory",
+        "approve_command",
+        "get_permission_status",
+        "set_permission_mode"
+      ]
+    }
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "name": "host-terminal",
+  "version": "0.1.0",
+  "description": "Execute terminal commands on the host machine with configurable permissions. Provides secure shell access for developers with allowlist-based command filtering, directory restrictions, and multiple permission modes.",
+  "author": {
+    "name": "Ankit",
+    "email": "ankit.ag.in@gmail.com"
+  },
+  "license": "Apache-2.0",
+  "keywords": [
+    "terminal",
+    "shell",
+    "bash",
+    "command-line",
+    "developer-tools",
+    "git",
+    "system"
+  ],
+  "categories": [
+    "developer-tools",
+    "productivity",
+    "system"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/host-terminal-mcp"
+  },
+  "engines": {
+    "python": ">=3.10"
+  },
+  "capabilities": {
+    "terminal": true,
+    "fileSystem": "read",
+    "network": false
+  }
+}

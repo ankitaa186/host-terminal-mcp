@@ -1,0 +1,14 @@
+{
+  "name": "host-terminal-marketplace",
+  "owner": {
+    "name": "Ankit"
+  },
+  "description": "Terminal access plugins for Claude Cowork",
+  "plugins": [
+    {
+      "name": "host-terminal",
+      "source": ".",
+      "description": "Execute terminal commands on the host machine with configurable permissions. Includes /shell, /git, /explore commands and developer workflow skills."
+    }
+  ]
+}

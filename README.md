@@ -2,6 +2,8 @@
 
 Run terminal commands on your computer through Claude.
 
+**Why?** Claude Cowork runs inside a sandboxed VM and can't access your host machine's terminal. This MCP plugin bridges that gap, letting Claude run commands directly on your computer (with permission controls).
+
 ## Install
 
 ```bash

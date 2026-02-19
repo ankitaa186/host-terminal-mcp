@@ -59,11 +59,14 @@ class CommandExecutor:
         if not os.path.isdir(normalized_path):
             return False, f"Not a directory: {normalized_path}"
 
+        # Resolve symlinks to prevent traversal outside allowed directories
+        normalized_path = os.path.realpath(normalized_path)
+
         # Check if path is in allowed directories
         is_allowed = False
         for allowed_dir in self.config.allowed_directories:
-            allowed_expanded = os.path.expanduser(allowed_dir)
-            if normalized_path.startswith(os.path.normpath(allowed_expanded)):
+            allowed_expanded = os.path.realpath(os.path.expanduser(allowed_dir))
+            if normalized_path.startswith(allowed_expanded):
                 is_allowed = True
                 break
 
@@ -99,13 +102,13 @@ class CommandExecutor:
         # Use provided directory or current directory
         cwd = working_directory or self._current_directory
 
-        # Expand and normalize the working directory
-        cwd = os.path.normpath(os.path.expanduser(cwd))
+        # Expand, normalize, and resolve symlinks to prevent traversal
+        cwd = os.path.realpath(os.path.expanduser(cwd))
 
         # Verify working directory is allowed
         is_allowed = False
         for allowed_dir in self.config.allowed_directories:
-            allowed_expanded = os.path.normpath(os.path.expanduser(allowed_dir))
+            allowed_expanded = os.path.realpath(os.path.expanduser(allowed_dir))
             if cwd.startswith(allowed_expanded):
                 is_allowed = True
                 break

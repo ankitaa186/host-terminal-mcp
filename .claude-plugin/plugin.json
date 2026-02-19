@@ -23,7 +23,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourusername/host-terminal-mcp"
+    "url": "https://github.com/ankitaa186/host-terminal-mcp"
   },
   "engines": {
     "python": ">=3.10"

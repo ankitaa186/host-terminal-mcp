@@ -36,7 +36,7 @@ class TestCommandExecutor:
         """Test changing to valid directory."""
         success, message = executor.change_directory("/tmp")
         assert success
-        assert executor.current_directory == "/tmp"
+        assert executor.current_directory == os.path.realpath("/tmp")
 
     def test_change_directory_nonexistent(self, executor):
         """Test changing to non-existent directory fails."""
@@ -60,7 +60,7 @@ class TestCommandExecutor:
             dirname = os.path.basename(tmpdir)
             success, message = executor.change_directory(dirname)
             assert success
-            assert executor.current_directory == tmpdir
+            assert executor.current_directory == os.path.realpath(tmpdir)
 
     @pytest.mark.asyncio
     async def test_execute_simple_command(self, executor):

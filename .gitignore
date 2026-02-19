@@ -76,3 +76,6 @@ Thumbs.db
 
 # Project specific - don't commit user config
 config.yaml
+
+# Claude local settings
+.claude/

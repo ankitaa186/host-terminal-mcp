@@ -322,6 +322,10 @@ make help           # Show all targets
 }
 ```
 
+## Disclaimer
+
+This software executes shell commands on your computer as directed by an AI model. AI models can behave unpredictably. Although permission controls (allowlist, blocklist, human-in-the-loop approval) are provided, they are offered on a best-effort basis and **cannot guarantee safety**. In particular, AI models may attempt to bypass permission controls — for example, by calling tool APIs to self-approve commands or by crafting inputs that circumvent the allowlist. The `ask` mode depends on the MCP client correctly presenting approval prompts to a human; not all clients do so, and this project has no control over client behavior. By installing or using this software you acknowledge that: **(1)** you are solely responsible for every command that runs on your system, **(2)** the authors and contributors disclaim all liability for any damage, data loss, security breach, or other harm arising from its use, **(3)** permission controls are a best-effort safeguard, not a security boundary, and **(4)** this software is provided "AS IS" without warranties of any kind, as stated in the [Apache 2.0 License](LICENSE). Do not run this tool on production systems or systems containing sensitive data without understanding the risks.
+
 ## License
 
-Apache-2.0
+Apache-2.0 — see [LICENSE](LICENSE) for the full text, including the warranty disclaimer and limitation of liability.

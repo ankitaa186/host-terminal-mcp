@@ -103,6 +103,14 @@ Open a Co-work session in Claude.ai (or use Claude Desktop directly) and ask:
 - "What's running on port 3000?"
 - "Run the tests for this project"
 
+## Why This Tool
+
+**Terminal access with guard rails.** Three permission modes let you choose the right level of access — a locked-down allowlist for read-only commands, an `ask` mode that prompts you for real-time approval using [MCP elicitation](https://modelcontextprotocol.io/specification/draft/client/elicitation), or an unrestricted mode for sandboxed environments.
+
+**Skills that teach the AI how to use the terminal.** The plugin ships with [skills](skills/) — structured guides that Claude reads at runtime. A [codebase explorer](skills/codebase-explorer/SKILL.md) skill teaches project navigation patterns (directory structure, manifest detection, dependency tracing). A [terminal workflows](skills/terminal-workflows/SKILL.md) skill teaches safe shell execution (command chaining, error handling, process management). Claude doesn't just get access — it gets expertise.
+
+**Slash commands and connectors.** Built-in [commands](commands/) like `/shell`, `/git`, and `/permissions` give you direct control. A [connector system](CONNECTORS.md) (`~~terminal`) lets other plugins reference terminal access without being tied to a specific MCP implementation — swap in SSH, Docker, or a cloud shell without changing your workflows.
+
 ## Permission Modes
 
 | Mode | Behavior | Safety |

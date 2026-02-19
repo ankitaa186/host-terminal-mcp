@@ -297,7 +297,7 @@ src/host_terminal_mcp/
 ## Development
 
 ```bash
-git clone https://github.com/ankitag-in/host-terminal-mcp.git
+git clone https://github.com/ankitaa186/host-terminal-mcp.git
 cd host-terminal-mcp
 make install        # Install all deps (venv auto-created)
 make test           # Run tests

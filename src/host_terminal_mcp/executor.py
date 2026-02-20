@@ -2,10 +2,8 @@
 
 import asyncio
 import os
-import shlex
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 
 from .config import Config
 
@@ -87,7 +85,7 @@ class CommandExecutor:
     async def execute(
         self,
         command: str,
-        working_directory: Optional[str] = None,
+        working_directory: str | None = None,
     ) -> ExecutionResult:
         """
         Execute a command.
@@ -142,7 +140,6 @@ class CommandExecutor:
                     process.communicate(),
                     timeout=self.config.timeout_seconds,
                 )
-                timed_out = False
             except asyncio.TimeoutError:
                 process.kill()
                 await process.wait()

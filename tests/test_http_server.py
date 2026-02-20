@@ -3,7 +3,7 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from host_terminal_mcp.config import Config, CommandPattern, PermissionMode
+from host_terminal_mcp.config import CommandPattern, Config, PermissionMode
 from host_terminal_mcp.http_server import create_app
 
 

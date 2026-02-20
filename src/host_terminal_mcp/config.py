@@ -4,7 +4,6 @@ import os
 import re
 from enum import Enum
 from pathlib import Path
-from typing import Optional
 
 import yaml
 from pydantic import BaseModel, Field
@@ -374,7 +373,7 @@ def get_default_blocked_commands() -> list[CommandPattern]:
     ]
 
 
-def load_config(config_path: Optional[Path] = None) -> Config:
+def load_config(config_path: Path | None = None) -> Config:
     """Load configuration from file or create default."""
     if config_path is None:
         config_path = get_default_config_path()
@@ -405,7 +404,7 @@ def load_config(config_path: Optional[Path] = None) -> Config:
     )
 
 
-def save_config(config: Config, config_path: Optional[Path] = None) -> None:
+def save_config(config: Config, config_path: Path | None = None) -> None:
     """Save configuration to file."""
     if config_path is None:
         config_path = get_default_config_path()
@@ -433,7 +432,7 @@ def save_config(config: Config, config_path: Optional[Path] = None) -> None:
         yaml.safe_dump(data, f, default_flow_style=False, sort_keys=False)
 
 
-def create_default_config_file(config_path: Optional[Path] = None) -> Path:
+def create_default_config_file(config_path: Path | None = None) -> Path:
     """Create a default configuration file."""
     if config_path is None:
         config_path = get_default_config_path()

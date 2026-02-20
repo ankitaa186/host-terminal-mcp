@@ -5,13 +5,11 @@ allowing external services (e.g. Annie's MCP server running in Docker)
 to call host-terminal-mcp via HTTP instead of stdio.
 """
 
-import json
-from typing import Optional
 
 from fastapi import FastAPI
 from pydantic import BaseModel
 
-from .config import Config, load_config
+from .config import Config
 from .executor import CommandExecutor
 
 
@@ -19,7 +17,7 @@ class ExecuteRequest(BaseModel):
     """Request body for /execute endpoint."""
 
     command: str
-    working_directory: Optional[str] = None
+    working_directory: str | None = None
 
 
 class CdRequest(BaseModel):

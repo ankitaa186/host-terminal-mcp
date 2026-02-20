@@ -1,6 +1,7 @@
 """Tests for configuration module."""
 
 import pytest
+
 from host_terminal_mcp.config import (
     CommandPattern,
     Config,

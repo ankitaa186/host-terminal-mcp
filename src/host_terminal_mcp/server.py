@@ -6,7 +6,7 @@ import json
 import logging
 import sys
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
@@ -20,7 +20,6 @@ from .config import (
     Config,
     PermissionMode,
     create_default_config_file,
-    get_default_config_path,
     load_config,
     save_config,
 )
@@ -459,9 +458,9 @@ def main():
 
     if args.http:
         # Run as HTTP server (for external service access)
-        from .http_server import create_app
-
         import uvicorn
+
+        from .http_server import create_app
 
         app = create_app(config)
         logger.info(f"Starting Host Terminal MCP HTTP Server on port {args.port}")

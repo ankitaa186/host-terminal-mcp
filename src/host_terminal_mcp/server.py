@@ -43,7 +43,7 @@ class HostTerminalServer:
         # Register handlers
         self._setup_handlers()
 
-    def _setup_handlers(self):
+    def _setup_handlers(self) -> None:
         """Set up MCP request handlers."""
 
         @self.server.list_tools()
@@ -323,7 +323,7 @@ class HostTerminalServer:
         """Handle get_permission_status tool call."""
         show_all = arguments.get("show_all_allowed", False)
 
-        status = {
+        status: dict[str, Any] = {
             "permission_mode": self.config.permission_mode.value,
             "allowed_directories": self.config.allowed_directories,
             "timeout_seconds": self.config.timeout_seconds,
@@ -382,7 +382,7 @@ class HostTerminalServer:
             content=[TextContent(type="text", text=message)],
         )
 
-    async def run(self):
+    async def run(self) -> None:
         """Run the MCP server."""
         async with stdio_server() as (read_stream, write_stream):
             await self.server.run(
@@ -392,7 +392,7 @@ class HostTerminalServer:
             )
 
 
-def main():
+def main() -> None:
     """Main entry point."""
     parser = argparse.ArgumentParser(
         description="Host Terminal MCP Server - Execute terminal commands with configurable permissions"

@@ -24,7 +24,7 @@ jobs:
         run: uv python install ${{ matrix.python-version }}
 
       - name: Install dependencies
-        run: uv pip install -e ".[http,dev]" --quiet
+        run: uv sync --extra http --extra dev --quiet
 
       - name: Lint
         run: |
